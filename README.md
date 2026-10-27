@@ -5,7 +5,7 @@ extraer datos horarios de la API histórica de Open-Meteo, transformarlos,
 limpiarlos, filtrarlos y seleccionarlos, y cargarlos en una tabla de Supabase.
 
 Stack: Next.js 16 (App Router), TypeScript, Tailwind 4, shadcn/ui (Base UI),
-`@supabase/supabase-js`, Vitest.
+`@supabase/supabase-js`, MapLibre GL + MapTiler, Vitest.
 
 ## Instalación
 
@@ -42,6 +42,36 @@ npm run lint
 npm run build
 npx vitest run       # pruebas (la extracción real necesita red)
 ```
+
+## Mapa y paleta de colores
+
+Encima del pipeline hay un mapa de España (MapLibre GL con el estilo
+[*Ocean v4* de MapTiler](https://cloud.maptiler.com/maps/ocean-v4/)) con las
+cinco ciudades. Cada marcador muestra el estado de su extracción y, cuando hay
+datos, la temperatura media de sus registros válidos; al pasar el ratón se ven
+también el número de registros y la precipitación total.
+
+| Marcador | Significado |
+| --- | --- |
+| Verde claro (`B7E4C7`) | Ciudad no extraída |
+| Verde medio (`74C69D`) | Pendiente |
+| Azul | Descargando |
+| Verde oscuro (`1B4332`) | Extraída |
+| Rojo | Error |
+
+- Necesita `NEXT_PUBLIC_MAPTILER_KEY` (gratuita en cloud.maptiler.com). Esta
+  clave **sí es pública**: va al navegador. Restríngela en MapTiler a tus
+  orígenes (`http://localhost:3000` y tu dominio de Vercel). Sin clave, la app
+  funciona igual y muestra un aviso en lugar del mapa.
+- Si MapTiler rechaza la clave (origen no permitido) o el navegador no tiene
+  WebGL, la app lo indica bajo el mapa.
+
+La interfaz y el mapa usan la misma paleta verde:
+`D8F3DC · B7E4C7 · 95D5B2 · 74C69D · 52B788 · 40916C · 2D6A4F · 1B4332 · 081C15`.
+Está definida una sola vez como variables en `app/globals.css` (`--verde-50` …
+`--verde-800`, modo claro y oscuro). En el mapa se aplica sobre las capas del
+estilo al cargarlo (`components/etl/mapa-ciudades.tsx`): el mar se oscurece con
+la profundidad y la tierra queda clara para que destaquen las ciudades.
 
 ## Cómo funciona el pipeline
 

@@ -1,0 +1,20 @@
+# Entorno mínimo para pruebas de integración: Postgres + PostgREST.
+# No es Supabase completo, pero es la misma API REST que usa supabase-js.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports: ["54329:5432"]
+    volumes:
+      - ./roles.sql:/docker-entrypoint-initdb.d/01-roles.sql:ro
+      - ../../../supabase/migrations/20261027000000_mediciones_meteorologicas.sql:/docker-entrypoint-initdb.d/02-migracion.sql:ro
+  rest:
+    image: postgrest/postgrest:v12.2.3
+    depends_on: [db]
+    environment:
+      PGRST_DB_URI: postgres://authenticator:authenticator@db:5432/postgres
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: secreto-local-de-pruebas-con-mas-de-32-caracteres
+    ports: ["54330:3000"]

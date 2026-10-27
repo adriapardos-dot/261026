@@ -4,7 +4,13 @@ import * as React from "react"
 import type { Map as MapaMaplibre, Marker } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import type { PipelineEtl } from "@/hooks/use-pipeline-etl"
 import { CIUDADES } from "@/lib/etl/ciudades"
 import type { EstadoFase } from "@/lib/etl/tipos"
@@ -19,11 +25,78 @@ const LIMITES_ESPANA: [[number, number], [number, number]] = [
   [4.6, 44.0],
 ]
 
+// Paleta de la app (ver app/globals.css), aplicada también a las capas del mapa.
+const VERDE = {
+  50: "#d8f3dc",
+  100: "#b7e4c7",
+  200: "#95d5b2",
+  300: "#74c69d",
+  400: "#52b788",
+  500: "#40916c",
+  600: "#2d6a4f",
+  700: "#1b4332",
+  800: "#081c15",
+} as const
+const TIERRA = "#f3faf4"
+
+// Las capas batimétricas se llaman «-500m to -750m»: más profundo, más oscuro.
+function colorProfundidad(metros: number) {
+  if (metros < 250) return VERDE[100]
+  if (metros < 1000) return VERDE[200]
+  if (metros < 2000) return VERDE[300]
+  if (metros < 3500) return VERDE[400]
+  if (metros < 5000) return VERDE[500]
+  return VERDE[600]
+}
+
+function aplicarPaleta(m: MapaMaplibre) {
+  const pintar = (capa: string, propiedad: string, valor: unknown) => {
+    try {
+      m.setPaintProperty(capa, propiedad, valor)
+    } catch {
+      // Si MapTiler cambia el estilo y falta alguna propiedad, se deja como está.
+    }
+  }
+  for (const capa of m.getStyle().layers) {
+    const { id, type } = capa
+    const fuente = "source-layer" in capa ? capa["source-layer"] : undefined
+    const profundidad = /^-\d+m to -(\d+)m$/.exec(id)
+    if (type === "background") pintar(id, "background-color", VERDE[50])
+    else if (profundidad)
+      pintar(id, "fill-color", colorProfundidad(Number(profundidad[1])))
+    else if (id === "Water") pintar(id, "fill-color", VERDE[50])
+    else if (id === "Land") pintar(id, "fill-color", TIERRA)
+    else if (id === "Land shadow") pintar(id, "line-color", VERDE[300])
+    else if (id.startsWith("Land shadow ")) pintar(id, "fill-color", VERDE[400])
+    else if (id === "Depth contour") pintar(id, "line-color", VERDE[50])
+    else if (id === "Terrain RGB") {
+      pintar(id, "hillshade-accent-color", VERDE[50])
+      pintar(id, "hillshade-highlight-color", "#ffffff")
+      pintar(id, "hillshade-shadow-color", VERDE[200])
+    } else if (id === "Ocean RGB") {
+      pintar(id, "hillshade-accent-color", VERDE[200])
+      pintar(id, "hillshade-shadow-color", "rgba(27, 67, 50, 0.35)")
+    } else if (fuente === "waterway") pintar(id, "line-color", VERDE[300])
+    else if (fuente === "grid_wgs_84" && type === "line")
+      pintar(id, "line-color", VERDE[300])
+    else if (fuente === "contour" && type === "line")
+      pintar(id, "line-color", VERDE[400])
+    else if (type === "symbol") {
+      pintar(
+        id,
+        "text-color",
+        fuente === "grid_wgs_84" ? VERDE[600] : VERDE[700]
+      )
+      pintar(id, "text-halo-color", "rgba(255, 255, 255, 0.8)")
+    }
+  }
+}
+
 const COLOR_ESTADO: Record<EstadoFase | "sin_seleccionar", string> = {
-  sin_seleccionar: "#94a3b8",
-  pendiente: "#64748b",
+  sin_seleccionar: VERDE[100],
+  pendiente: VERDE[300],
   en_curso: "#2563eb",
-  completada: "#16a34a",
+  completada: VERDE[700],
   error: "#dc2626",
 }
 
@@ -43,7 +116,10 @@ type Resumen = {
 }
 
 const formatoDecimal = (n: number) =>
-  n.toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  n.toLocaleString("es-ES", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })
 
 function contenidoMarcador(nombre: string, r: Resumen) {
   const raiz = document.createElement("div")
@@ -53,15 +129,21 @@ function contenidoMarcador(nombre: string, r: Resumen) {
   punto.style.background = COLOR_ESTADO[r.estado]
   const etiqueta = document.createElement("span")
   etiqueta.className =
-    "rounded bg-white/90 px-1.5 py-0.5 text-[11px] font-medium leading-tight text-slate-900 shadow-sm"
+    "rounded bg-white/90 px-1.5 py-0.5 text-[11px] font-medium leading-tight text-[#081c15] shadow-sm"
   etiqueta.textContent =
-    r.tempMedia === null ? nombre : `${nombre} · ${formatoDecimal(r.tempMedia)} °C`
+    r.tempMedia === null
+      ? nombre
+      : `${nombre} · ${formatoDecimal(r.tempMedia)} °C`
   raiz.append(punto, etiqueta)
   raiz.title = [
     `${nombre}: ${TEXTO_ESTADO[r.estado]}`,
     `${formatoEntero(r.validos)} registros válidos`,
-    r.tempMedia === null ? null : `Temperatura media ${formatoDecimal(r.tempMedia)} °C`,
-    r.validos > 0 ? `Precipitación total ${formatoDecimal(r.lluviaTotal)} mm` : null,
+    r.tempMedia === null
+      ? null
+      : `Temperatura media ${formatoDecimal(r.tempMedia)} °C`,
+    r.validos > 0
+      ? `Precipitación total ${formatoDecimal(r.lluviaTotal)} mm`
+      : null,
   ]
     .filter(Boolean)
     .join("\n")
@@ -79,8 +161,15 @@ export function MapaCiudades({ pipeline }: { pipeline: PipelineEtl }) {
   const resumenes = React.useMemo(() => {
     const porCiudad = new Map<string, Resumen>()
     for (const c of CIUDADES) {
-      const estado = extraccion?.ciudades.find((e) => e.id === c.id)?.estado ?? "sin_seleccionar"
-      porCiudad.set(c.nombre, { estado, validos: 0, tempMedia: null, lluviaTotal: 0 })
+      const estado =
+        extraccion?.ciudades.find((e) => e.id === c.id)?.estado ??
+        "sin_seleccionar"
+      porCiudad.set(c.nombre, {
+        estado,
+        validos: 0,
+        tempMedia: null,
+        lluviaTotal: 0,
+      })
     }
     const sumas = new Map<string, number>()
     for (const v of validos) {
@@ -103,23 +192,42 @@ export function MapaCiudades({ pipeline }: { pipeline: PipelineEtl }) {
     const lista = marcadores.current
     import("maplibre-gl").then(({ default: maplibregl }) => {
       if (cancelado || !contenedor.current) return
-      const m = new maplibregl.Map({
-        container: contenedor.current,
-        style: ESTILO,
-        bounds: LIMITES_ESPANA,
-        fitBoundsOptions: { padding: 24 },
-        attributionControl: { compact: true },
-        cooperativeGestures: true,
-      })
-      m.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right")
+      let m: MapaMaplibre
+      try {
+        m = new maplibregl.Map({
+          container: contenedor.current,
+          style: ESTILO,
+          bounds: LIMITES_ESPANA,
+          fitBoundsOptions: { padding: 24 },
+          attributionControl: { compact: true },
+          cooperativeGestures: true,
+        })
+      } catch (e) {
+        setErrorMapa(
+          `No se pudo crear el mapa: ${e instanceof Error ? e.message : String(e)}. ` +
+            "Comprueba que el navegador tiene WebGL activado (aceleración por hardware)."
+        )
+        return
+      }
+      m.addControl(
+        new maplibregl.NavigationControl({ showCompass: false }),
+        "top-right"
+      )
+      m.on("style.load", () => aplicarPaleta(m))
       m.on("error", (e) => {
         if (/401|403|key/i.test(e.error?.message ?? ""))
-          setErrorMapa("MapTiler ha rechazado la clave. Revisa NEXT_PUBLIC_MAPTILER_KEY.")
+          setErrorMapa(
+            `MapTiler ha rechazado la clave desde ${window.location.origin}. Revisa ` +
+              "NEXT_PUBLIC_MAPTILER_KEY y los orígenes permitidos de la clave."
+          )
       })
       for (const c of CIUDADES) {
         lista.set(
           c.nombre,
-          new maplibregl.Marker({ element: document.createElement("div"), anchor: "top" })
+          new maplibregl.Marker({
+            element: document.createElement("div"),
+            anchor: "top",
+          })
             .setLngLat([c.longitud, c.latitud])
             .addTo(m)
         )
@@ -149,7 +257,8 @@ export function MapaCiudades({ pipeline }: { pipeline: PipelineEtl }) {
       <CardHeader>
         <CardTitle>Mapa de las ciudades</CardTitle>
         <CardDescription>
-          Estado de la extracción por ciudad y temperatura media de sus registros válidos.
+          Estado de la extracción por ciudad y temperatura media de sus
+          registros válidos.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
@@ -163,18 +272,26 @@ export function MapaCiudades({ pipeline }: { pipeline: PipelineEtl }) {
         ) : (
           <p className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
             Para ver el mapa, define <code>NEXT_PUBLIC_MAPTILER_KEY</code> en{" "}
-            <code>.env.local</code> con tu clave de MapTiler (cloud.maptiler.com → Account → Keys)
-            y reinicia <code>npm run dev</code>.
+            <code>.env.local</code> con tu clave de MapTiler (cloud.maptiler.com
+            → Account → Keys) y reinicia <code>npm run dev</code>.
           </p>
         )}
         {errorMapa && <p className="text-sm text-destructive">{errorMapa}</p>}
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground" aria-label="Leyenda">
-          {(Object.keys(TEXTO_ESTADO) as (keyof typeof TEXTO_ESTADO)[]).map((k) => (
-            <li key={k} className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full" style={{ background: COLOR_ESTADO[k] }} />
-              {TEXTO_ESTADO[k]}
-            </li>
-          ))}
+        <ul
+          className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"
+          aria-label="Leyenda"
+        >
+          {(Object.keys(TEXTO_ESTADO) as (keyof typeof TEXTO_ESTADO)[]).map(
+            (k) => (
+              <li key={k} className="flex items-center gap-1.5">
+                <span
+                  className="size-2.5 rounded-full"
+                  style={{ background: COLOR_ESTADO[k] }}
+                />
+                {TEXTO_ESTADO[k]}
+              </li>
+            )
+          )}
         </ul>
       </CardContent>
     </Card>

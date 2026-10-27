@@ -26,7 +26,7 @@ const ESTADOS: Record<
     texto: "Completada",
     Icono: CheckCircle2Icon,
     clase:
-      "border-emerald-600/30 bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
+      "border-primary/30 bg-secondary text-secondary-foreground",
   },
   error: {
     texto: "Con errores",

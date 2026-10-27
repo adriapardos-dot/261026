@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { usePipelineEtl } from "@/hooks/use-pipeline-etl"
 import { cn } from "@/lib/utils"
 import { formatoEntero } from "./formato"
+import { MapaCiudades } from "./mapa-ciudades"
 import { PanelExtraccion } from "./panel-extraccion"
 import { PestanaCarga } from "./pestana-carga"
 import { PestanaSupabase } from "./pestana-supabase"
@@ -82,6 +83,8 @@ export function BancoTrabajo() {
         ocupado={Boolean(extraccion?.enCurso) || Boolean(carga?.enCurso)}
         alExtraer={pipeline.extraer}
       />
+
+      <MapaCiudades pipeline={pipeline} />
 
       <VistaPipeline pipeline={pipeline} alInspeccionar={inspeccionar} />
 

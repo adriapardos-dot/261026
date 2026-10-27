@@ -27,6 +27,7 @@ cp .env.example .env.local   # y rellena los valores
 | `SUPABASE_SECRET_KEY` | Project Settings → API Keys → *Secret keys* (`sb_secret_…`) | Salta RLS. **Solo servidor.** |
 | `SUPABASE_SERVICE_ROLE_KEY` | Clave heredada `service_role` | Alternativa si no tienes claves nuevas. |
 | `ETL_PERMITIR_SIN_AUTENTICACION` | — | Ver «Seguridad». |
+| `NEXT_PUBLIC_MAPTILER_KEY` | cloud.maptiler.com → Account → Keys | Mapa (estilo *Ocean v4*). Es pública: restríngela por dominio. |
 
 Nunca uses `NEXT_PUBLIC_` para estas variables. Sin credenciales, la app extrae,
 transforma y filtra con normalidad, pero la carga queda deshabilitada y los

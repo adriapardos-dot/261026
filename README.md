@@ -43,6 +43,20 @@ npm run build
 npx vitest run       # pruebas (la extracción real necesita red)
 ```
 
+## Despliegue en Vercel
+
+`.env.local` no se sube al repositorio, así que Vercel no ve sus valores. Si en
+producción aparece el aviso «Para ver el mapa, define NEXT_PUBLIC_MAPTILER_KEY…»,
+falta la variable en Vercel:
+
+1. Vercel → proyecto → **Settings → Environment Variables**: añade
+   `NEXT_PUBLIC_MAPTILER_KEY` (y las de Supabase) para *Production*, *Preview* y
+   *Development*.
+2. **Deployments → ⋯ → Redeploy**. Las variables `NEXT_PUBLIC_` se incrustan al
+   compilar: sin un nuevo despliegue no se aplican.
+3. En cloud.maptiler.com → Account → Keys, añade el dominio de Vercel
+   (`https://tu-proyecto.vercel.app`) a los orígenes permitidos de la clave.
+
 ## Mapa y paleta de colores
 
 Encima del pipeline hay un mapa de España (MapLibre GL con el estilo
